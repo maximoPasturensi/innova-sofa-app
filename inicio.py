@@ -3,8 +3,10 @@ from supabase import create_client
 import pandas as pd
 
 # 1. Configuración de conexión
-URL_PROYECTO = "https://dpbvabeqgokpjixbsbxr.supabase.co"
-KEY_PROYECTO = "sb_publishable_wJkOANIAJDUv7PxrjFz-VA_2lITki7K"
+# En lugar de pegar el texto de la clave, le decimos que la busque en secrets
+URL_PROYECTO = st.secrets["URL_PROYECTO"]
+KEY_PROYECTO = st.secrets["KEY_PROYECTO"]
+
 supabase = create_client(URL_PROYECTO, KEY_PROYECTO)
 
 # 2. Función de Login
@@ -69,16 +71,30 @@ if check_password():
 
     elif opcion == "Ver Pedidos Pendientes":
         st.header("📋 Tablero de Producción - Fábrica")
-        res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").order('id', desc=True).execute()
+        
+        # Traemos los pedidos de forma simple primero
+        res = supabase.table("pedidos").select("*").order('id', desc=True).execute()
         
         if res.data:
             for p in res.data:
-                total = float(p['total_operacion'])
-                anticipo = float(p['anticipo_monto'])
+                # Buscamos el nombre del cliente por separado para evitar el error de Join
+                cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
+                nombre_cliente = cli.data[0]['nombre_apellido'] if cli.data else "Cliente Desconocido"
+                
+                total = float(p['total_operacion']) if p['total_operacion'] else 0.0
+                anticipo = float(p['anticipo_monto']) if p['anticipo_monto'] else 0.0
                 saldo = total - anticipo
-                with st.expander(f"🪑 {p['clientes']['nombre_apellido']} - {p['estado']}"):
-                    st.write(f"**Color:** {p['color']} | **Nota:** {p['nota']}")
-                    st.error(f"**SALDO A COBRAR:** ${saldo:,.2f}")
-                    if st.button("Marcar como Terminado", key=p['id']):
+                
+                with st.expander(f"🪑 {nombre_cliente} - {p['estado']}"):
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.write(f"**Color:** {p['color']}")
+                        st.write(f"**Detalle:** {p['nota']}")
+                    with col_b:
+                        st.error(f"**SALDO:** ${saldo:,.2f}")
+                    
+                    if st.button("Marcar Terminado", key=f"btn_{p['id']}"):
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
                         st.rerun()
+        else:
+            st.info("No hay pedidos cargados.")
