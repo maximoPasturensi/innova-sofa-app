@@ -2,6 +2,39 @@ import streamlit as st
 from supabase import create_client
 import pandas as pd
 
+# --- SISTEMA DE LOGIN SIMPLE ---
+def check_password():
+    """Retorna True si el usuario ingresó la contraseña correcta."""
+    def password_entered():
+        """Chequea si la contraseña coincide."""
+        if st.session_state["username"] == "admin" and st.session_state["password"] == "innova2026":
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # No guardamos la contraseña
+            del st.session_state["username"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # Pantalla de Login
+        st.text_input("Usuario", on_change=None, key="username")
+        st.text_input("Contraseña", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        # Falló el login
+        st.text_input("Usuario", on_change=None, key="username")
+        st.text_input("Contraseña", type="password", on_change=password_entered, key="password")
+        st.error("😕 Usuario o contraseña incorrectos")
+        return False
+    else:
+        # Contraseña correcta
+        return True
+
+# --- CONTROL DE ACCESO ---
+if check_password():
+    # AQUÍ VA TODO EL RESTO DE TU CÓDIGO ACTUAL
+    # (El st.title, el menú, el registro de pedidos, etc.)
+    st.sidebar.success("Sesión iniciada")
+
 # 1. Configuración de conexión (Copiá tus datos de Supabase aquí)
 URL_PROYECTO = "https://dpbvabeqgokpjixbsbxr.supabase.co"
 KEY_PROYECTO = "sb_publishable_wJkOANlAJDuV7PxrjFz-VA_2lITki7K"
