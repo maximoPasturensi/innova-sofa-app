@@ -42,6 +42,10 @@ if check_password():
 
     opcion = st.sidebar.selectbox("Menú", ["Registrar Pedido", "Ver Pedidos Pendientes", "Reforzar Seña", "Pedidos Terminados"])
 
+    # -- MENU PRINCIPAL --
+    if "vista_actual" not in st.session_state:
+        st.session_state.vista_actual = "Menu_Principal"
+
     # --- DEBAJO DE TU SELECTBOX DE MENÚ ---
     st.sidebar.divider() # Una línea para separar
     st.sidebar.subheader("🏢 Área Mayorista")
@@ -150,12 +154,12 @@ if check_password():
                         st.markdown("### 💰 Pago")
                         st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
                         st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
+                        st.error(f"## 🚩 RESTAN: ${saldo:,.2f}")
                     with c2:
                         st.markdown("### 🛋️ Producto")
                         st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
                         # El cartel rojo a la derecha que te gustó
-                        st.error(f"#### 🚩 RESTAN: ${saldo:,.2f}")
                     
                     st.divider()
                     
@@ -276,3 +280,51 @@ if check_password():
                             st.rerun()
         else:
             st.info("Aún no tenés pedidos terminados.")
+
+        # --- PANTALLA: NUEVA VENTA MAYORISTA ---
+    elif st.session_state.vista_actual == "Nueva_Venta_Mayorista":
+        st.header("📦 Nueva Venta Mayorista")
+        
+        # 1. Botón para volver
+        if st.button("⬅️ Volver al Menú"):
+            st.session_state.vista_actual = "Menu_Principal"
+            st.rerun()
+
+        # 2. Traemos los mayoristas de la tabla
+        res_m = supabase.table("clientes_mayoristas").select("*").execute()
+        
+        if res_m.data:
+            nombres_m = {m['nombre_comercio']: m for m in res_m.data}
+            seleccion = st.selectbox("Elegí el Mayorista", list(nombres_m.keys()))
+            
+            m_info = nombres_m[seleccion]
+            st.info(f"📍 Entrega en: {m_info['direccion']} | 📱 WA: {m_info['whatsapp']}")
+
+            with st.form("form_may"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    producto = st.text_input("Producto/Modelo")
+                    cantidad = st.number_input("Cantidad", min_value=1)
+                with col2:
+                    color = st.text_input("Color")
+                    precio_u = st.number_input("Precio por Unidad $")
+                
+                nota = st.text_area("Notas adicionales")
+                
+                if st.form_submit_button("Cargar Pedido"):
+                    total = cantidad * precio_u
+                    # Aquí insertamos en la tabla de pedidos normal
+                    supabase.table("pedidos").insert({
+                        "cliente_id": m_info['id'], # ID del mayorista
+                        "color": color,
+                        "nota": f"CANT: {cantidad} - {producto}. {nota}",
+                        "total_operacion": total,
+                        "estado": "Pendiente",
+                        "tipo": "Mayorista" # Para diferenciarlos
+                    }).execute()
+                    st.success("✅ Pedido mayorista cargado con éxito")
+        else:
+            st.warning("Aún no tenés mayoristas cargados.")
+            if st.button("➕ Cargar mi primer mayorista"):
+                st.session_state.vista_actual = "Lista_Mayoristas"
+                st.rerun()
