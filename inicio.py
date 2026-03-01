@@ -145,16 +145,15 @@ if check_password():
                 nombre_pdf = f"Remito_{p['id']}.pdf"
                 pdf.output(nombre_pdf)
                                 
-            with open(nombre_pdf, "rb") as f:
-                    st.download_button("⬇️ Descargar PDF", f, file_name=nombre_pdf)
-
-                    # --- BOTÓN TERMINAR ---
-                    if st.button("Marcar Terminado", key=f"fin_{p['id']}"):
-                        supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
-                        st.success("¡Pedido finalizado!")
-                        st.rerun()
-                    else:
-                        st.info("No hay pedidos pendientes.")
+                with open(nombre_pdf, "rb") as f:
+                        st.download_button("⬇️ Descargar PDF", f, file_name=nombre_pdf)
+                        # --- BOTÓN TERMINAR ---
+                        if st.button("Marcar Terminado", key=f"fin_{p['id']}"):
+                            supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
+                            st.success("¡Pedido finalizado!")
+                            st.rerun()
+                        else:
+                            st.info("No hay pedidos pendientes.")
 
         # --- OPCIÓN 4: PEDIDOS TERMINADOS (EL HISTORIAL) ---
     elif opcion == "Pedidos Terminados":
