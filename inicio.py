@@ -155,17 +155,16 @@ if check_password():
                             st.markdown("### 💰 Pago")
                             st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
                             st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
-                            st.error(f"## 🚩 RESTAN: ${saldo:,.2f}")
+                            st.warning(f"🚩 Restan: ${saldo:,.2f}")
                         with c2:
                             st.markdown("### 🛋️ Producto")
                             st.write(f"**Color:** {p['color']}")
                             st.write(f"**Notas:** {p['nota']}")
-                            # El cartel rojo a la derecha que te gustó
                     
                         # WhatsApp
                         tel = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
                         if tel:
-                            st.link_button("🟢 Ir al WhatsApp", f"https://wa.me/{tel}", type="primary")
+                            st.link_button("✅ Ir al WhatsApp", f"https://wa.me/{tel}")
                         
                             # PDF
                             if st.button(f"📄 Remito #{p['id']}", key=f"pend_pdf_{p['id']}"):
@@ -195,8 +194,7 @@ if check_password():
                             supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
                             st.success("¡Pedido finalizado!")
                             st.rerun()
-                        else:
-                            st.info("No hay pedidos pendientes.")
+                            
                         # --- OPCIÓN 3: REFORZAR SEÑA  ---
         elif opcion == "Reforzar Seña":
                 st.header("💰 Reforzar Seña de Pedido")
