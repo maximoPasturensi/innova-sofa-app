@@ -47,12 +47,12 @@ if check_password():
     st.sidebar.subheader("🏢 Área Mayorista")
 
     # Botón que activa la vista mayorista
-    if st.sidebar.button("📦 Nueva Venta Mayorista", use_container_width=True):
-        st.session_state.vista_actual = "Mayorista"
+    if st.sidebar.button("📦 Nueva Venta Mayorista", use_container_width=True, key="btn_venta_may"):
+        st.session_state.vista_actual = "Nueva_Venta_Mayorista"
         st.rerun()
 
     # Botón para ver los clientes fijos
-    if st.sidebar.button("👥 Mis Mayoristas", use_container_width=True):
+    if st.sidebar.button("👥 Mis Mayoristas", use_container_width=True, key="btn_lista_may"):
         st.session_state.vista_actual = "Lista_Mayoristas"
         st.rerun()
 
@@ -184,19 +184,19 @@ if check_password():
                         st.link_button("🟢 Ir al WhatsApp", f"https://wa.me/{tel}", type="primary")
                     
                     # PDF
-                    if st.button(f"📄 Generar Remito #{p['id']}", key=f"pdf_{p['id']}"):
-                        pdf = FPDF()
-                        pdf.add_page()
-                        pdf.set_font("Arial", "B", 16)
-                        pdf.cell(0, 10, "INNOVA SOFA - REMITO", ln=True, align="C")
-                        pdf.set_font("Arial", "", 12)
-                        pdf.ln(10)
-                        pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
-                        pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
-                        pdf.cell(0, 10, f"Saldo: ${saldo:,.2f}", ln=True)
+                        if st.button(f"📄 Remito #{p['id']}", key=f"pend_pdf_{p['id']}"): # Agregamos 'pend_'
+                            pdf = FPDF()
+                            pdf.add_page()
+                            pdf.set_font("Arial", "B", 16)
+                            pdf.cell(0, 10, "INNOVA SOFA - REMITO", ln=True, align="C")
+                            pdf.set_font("Arial", "", 12)
+                            pdf.ln(10)
+                            pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
+                            pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
+                            pdf.cell(0, 10, f"Saldo: ${saldo:,.2f}", ln=True)
                         
-                        nom_f = f"Remito_{p['id']}.pdf"
-                        pdf.output(nom_f)
+                            nom_f = f"Remito_{p['id']}.pdf"
+                            pdf.output(nom_f)
                         with open(nom_f, "rb") as f:
                             st.download_button("⬇️ Descargar", f, file_name=nom_f, key=f"dl_{p['id']}")
 
@@ -259,8 +259,11 @@ if check_password():
                         
                         st.divider()
                         
+                        if st.button(f"📄 Generar Remito #{p['id']}", key=f"hist_pdf_{p['id']}"):
+                            st.info(f"Generando remito para el pedido #{p['id']}...")
+
                         # Botón para devolver a pendientes por si se marcó por error
-                        if st.button(f"🔄 Reabrir Pedido #{p['id']}", key=f"re_{p['id']}"):
+                        if st.button(f"🔄 Reabrir Pedido #{p['id']}", key=f"hist_re_{p['id']}"):
                             supabase.table("pedidos").update({"estado": "Pendiente"}).eq("id", p['id']).execute()
                             st.success("Pedido devuelto a la lista de pendientes")
                             st.rerun()
