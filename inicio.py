@@ -79,10 +79,46 @@ if check_password():
             # Sumamos todos los saldos de la lista
             total_a_cobrar = sum((float(p['total_operacion'] or 0) - float(p['anticipo_monto'] or 0)) for p in res.data)
 
+    elif opcion == "Reforzar Seña":
+        st.header("💰 Registrar Refuerzo de Dinero")
+        
+        # 1. Buscamos pedidos que NO estén terminados
+        res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").eq("estado", "Pendiente").execute()
+        
+        if res.data:
+            # Creamos una lista para que tu viejo elija el pedido fácilmente
+            opciones_pedidos = {f"ID: {p['id']} - {p['clientes']['nombre_apellido']}": p for p in res.data}
+            seleccion = st.selectbox("Seleccioná el pedido a reforzar:", list(opciones_pedidos.keys()))
+            
+            pedido_elegido = opciones_pedidos[seleccion]
+            
+            st.info(f"Saldo actual a cobrar: **${float(pedido_elegido['total_operacion']) - float(pedido_elegido['anticipo_monto']):,.2f}**")
+            
+            # 2. Formulario para el nuevo dinero
+            nuevo_monto = st.number_input("Monto del refuerzo:", min_value=0.0, step=1000.0)
+            nuevo_metodo = st.selectbox("Método de pago:", ["Efectivo", "Transferencia", "Tarjeta"])
+            
+            if st.button("Confirmar Refuerzo"):
+                # Calculamos el nuevo total de anticipo
+                nuevo_total_anticipo = float(pedido_elegido['anticipo_monto']) + nuevo_monto
+                # Actualizamos la nota para que quede registro (opcional pero muy útil)
+                nueva_nota = f"{pedido_elegido['nota']} | REFUERZO: ${nuevo_monto} por {nuevo_metodo}"
+                
+                supabase.table("pedidos").update({
+                    "anticipo_monto": nuevo_total_anticipo,
+                    "nota": nueva_nota
+                }).eq("id", pedido_elegido['id']).execute()
+                
+                st.success(f"¡Pago registrado! El nuevo saldo es: ${float(pedido_elegido['total_operacion']) - nuevo_total_anticipo:,.2f}")
+                st.balloons()
+        else:
+            st.warning("No hay pedidos pendientes para reforzar.")
+
 # Lo mostramos en un cartel grande y verde
+            total_a_cobrar = sum((float(p['total_operacion'] or 0) - float(p['anticipo_monto'] or 0)) for p in res.data)
             st.metric(label="💰 TOTAL PENDIENTE DE COBRO", value=f"${total_a_cobrar:,.2f}")
             st.divider()
-            
+
             for p in res.data:
                 # Buscamos el nombre del cliente
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
