@@ -162,62 +162,41 @@ if check_password():
                             st.write(f"**Notas:** {p['nota']}")
                             # El cartel rojo a la derecha que te gustó
                     
-                        st.divider()
-                    
-                        # Botones alineados
-                    col_b1, col_b2, col_b3 = st.columns(3)
-                    with col_b1:
+                        # WhatsApp
                         tel = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
                         if tel:
-                            st.link_button("🟢 WhatsApp", f"https://wa.me/{tel}")
-                    with col_b2:
-                        if st.button(f"📄 Remito #{p['id']}", key=f"pdf_{p['id']}"):
-                            # Aquí el código de PDF que ya tenías...
-                            st.info("Generando PDF...")
-                    with col_b3:
-                        if st.button("✅ Terminar", key=f"fin_{p['id']}"):
+                            st.link_button("🟢 Ir al WhatsApp", f"https://wa.me/{tel}", type="primary")
+                        
+                            # PDF
+                            if st.button(f"📄 Remito #{p['id']}", key=f"pend_pdf_{p['id']}"):
+                                pdf = FPDF()
+                                pdf.add_page()
+                                pdf.add_page()
+                                pdf.set_font("Arial", "B", 16)
+                                pdf.cell(0, 10, "INNOVA SOFA - REMITO", ln=True, align="C")
+                                pdf.set_font("Arial", "", 12)
+                                pdf.ln(10)
+                                pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
+                                pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
+                                pdf.cell(0, 10, f"Saldo: ${saldo:,.2f}", ln=True)
+                            
+                                nom_f = f"Remito_{p['id']}.pdf"
+                                pdf.output(nom_f)
+                                with open(nom_f, "rb") as f:
+                                    st.download_button(
+                                        label="⬇️ Descargar",
+                                        data=f,
+                                        file_name=nom_f,
+                                        mime="application/pdf",
+                                        key=f"pend_dl_{p['id']}"
+                                    )
+
+                        if st.button("✅ Marcar Terminado", key=f"pend_fin_{p['id']}"): # Agregamos 'pend_'
                             supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
+                            st.success("¡Pedido finalizado!")
                             st.rerun()
                         else:
                             st.info("No hay pedidos pendientes.")
-                    
-                    st.divider()
-                    
-                    # WhatsApp
-                    tel = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
-                    if tel:
-                        st.link_button("🟢 Ir al WhatsApp", f"https://wa.me/{tel}", type="primary")
-                    
-                    # PDF
-                        if st.button(f"📄 Remito #{p['id']}", key=f"pend_pdf_{p['id']}"):
-                            pdf = FPDF()
-                            pdf.add_page()
-                            pdf.add_page()
-                            pdf.set_font("Arial", "B", 16)
-                            pdf.cell(0, 10, "INNOVA SOFA - REMITO", ln=True, align="C")
-                            pdf.set_font("Arial", "", 12)
-                            pdf.ln(10)
-                            pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
-                            pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
-                            pdf.cell(0, 10, f"Saldo: ${saldo:,.2f}", ln=True)
-                        
-                            nom_f = f"Remito_{p['id']}.pdf"
-                            pdf.output(nom_f)
-                            with open(nom_f, "rb") as f:
-                                st.download_button(
-                                    label="⬇️ Descargar",
-                                    data=f,
-                                    file_name=nom_f,
-                                    mime="application/pdf",
-                                    key=f"pend_dl_{p['id']}"
-                                )
-
-                    if st.button("✅ Marcar Terminado", key=f"pend_fin_{p['id']}"): # Agregamos 'pend_'
-                        supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
-                        st.success("¡Pedido finalizado!")
-                        st.rerun()
-                    else:
-                        st.info("No hay pedidos pendientes.")
                         # --- OPCIÓN 3: REFORZAR SEÑA  ---
         elif opcion == "Reforzar Seña":
                 st.header("💰 Reforzar Seña de Pedido")
