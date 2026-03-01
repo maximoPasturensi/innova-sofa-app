@@ -1,7 +1,7 @@
 import streamlit as st
 from supabase import create_client
 import pandas as pd
-from fpdf2 import FPDF
+from fpdf import FPDF
 
 # 1. Configuración de conexión
 # En lugar de pegar el texto de la clave, le decimos que la busque en secrets
