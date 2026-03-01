@@ -2,12 +2,11 @@ import streamlit as st
 from supabase import create_client
 import pandas as pd
 from fpdf import FPDF
+import urllib.parse
 
 # 1. Configuración de conexión
-# En lugar de pegar el texto de la clave, le decimos que la busque en secrets
 URL_PROYECTO = st.secrets["URL_PROYECTO"]
 KEY_PROYECTO = st.secrets["KEY_PROYECTO"]
-
 supabase = create_client(URL_PROYECTO, KEY_PROYECTO)
 
 # 2. Función de Login
@@ -34,14 +33,12 @@ def check_password():
     else:
         return True
 
-# 3. CONTROL DE ACCESO (Si el login es correcto, muestra el resto)
+# 3. CONTROL DE ACCESO
 if check_password():
-    # --- TODO LO QUE SIGUE TIENE 4 ESPACIOS DE SANGRÍA ---
     st.set_page_config(page_title="Innova Sofá - Gestión", layout="wide")
     st.sidebar.success("Sesión iniciada")
     st.title("🛋️ Sistema de Gestión Innova Sofá")
 
-    # Definimos el menú con las 3 opciones
     opcion = st.sidebar.selectbox("Menú", ["Registrar Pedido", "Ver Pedidos Pendientes", "Reforzar Seña", "Pedidos Terminados"])
 
     # --- OPCIÓN 1: REGISTRAR ---
@@ -54,15 +51,13 @@ if check_password():
             anticipo = st.number_input("Anticipo $", min_value=0.0)
             metodo = st.text_input("Método de Anticipo (Ej: TRF JAVI)")
             notas = st.text_area("Descripción del Artículo")
-            whatsapp = st.text_input("📱 Número del cliente", placeholder="Ej: 1150361256")
-            st.caption("💡 Tip: Poné el 11 adelante para que el botón directo funcione perfecto.")
+            # Cambiamos el nombre de la variable para que coincida con la base de datos si es necesario
+            telefono = st.text_input("📱 WhatsApp (Sin espacios ni guiones)", placeholder="54911...")
             
             if st.form_submit_button("Guardar Pedido en la Nube"):
-                # Primero guardamos el cliente
                 res_cli = supabase.table("clientes").insert({"nombre_apellido": nombre}).execute()
                 cli_id = res_cli.data[0]['id']
                 
-                # Después guardamos el pedido
                 supabase.table("pedidos").insert({
                     "cliente_id": cli_id,
                     "color": color,
@@ -70,117 +65,108 @@ if check_password():
                     "anticipo_monto": anticipo,
                     "anticipo_metodo": metodo,
                     "nota": notas,
+                    "cliente_telefono": telefono, # Guardamos el tel aquí
                     "estado": "Pendiente"
                 }).execute()
                 st.success(f"✅ ¡Pedido de {nombre} guardado!")
 
-    # --- OPCIÓN 2: VER TABLERO (CON BUSCADOR) ---
+    # --- OPCIÓN 2: VER TABLERO ---
     elif opcion == "Ver Pedidos Pendientes":
         st.header("📋 Tablero de Producción")
-        
-        # 1. Traemos los datos de la nube
         res = supabase.table("pedidos").select("*").eq("estado", "Pendiente").order('id', desc=True).execute()
         
         if res.data:
-            # --- NUEVO: BARRA DE BÚSQUEDA ---
             busqueda = st.text_input("🔍 Buscar por nombre de cliente o detalle:", "").lower()
-
-            # Procesamos los datos para poder filtrar
             pedidos_mostrados = []
+            
             for p in res.data:
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
                 nombre_cli = cli.data[0]['nombre_apellido'] if cli.data else "Cliente"
-                
-                # Si el buscador está vacío o coincide con el nombre/nota/color, lo agregamos
-                if busqueda in nombre_cli.lower() or busqueda in p['nota'].lower() or busqueda in p['color'].lower():
+                if busqueda in nombre_cli.lower() or busqueda in (p['nota'] or "").lower() or busqueda in (p['color'] or "").lower():
                     pedidos_mostrados.append((p, nombre_cli))
 
-            # 2. CÁLCULO DEL TOTAL (Solo de lo que se ve en pantalla)
             total_visible = sum((float(item[0]['total_operacion'] or 0) - float(item[0]['anticipo_monto'] or 0)) for item in pedidos_mostrados)
-            
-            col_met, col_info = st.columns([2, 1])
-            with col_met:
-                st.metric(label="💰 SALDO PENDIENTE (FILTRADO)", value=f"${total_visible:,.2f}")
-            with col_info:
-                st.write(f"Mostrando **{len(pedidos_mostrados)}** pedidos")
-            
-            st.divider()
-            saldo = float(p.get('total_operacion') or 0) - float(p.get('anticipo_monto') or 0)
-            with st.expander(f"🆔 {p['id']} | 🪑 {nombre_cli} | SALDO: ${saldo:,.2f}"):
-                col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("### 💰 Pago")
-                st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
-                st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
-            with col2:
-                st.markdown("### 🛋️ Producto")
-                st.write(f"**Color:** {p['color']}")
-                st.write(f"**Notas:** {p['nota']}")
-            
+            st.metric(label="💰 SALDO PENDIENTE (FILTRADO)", value=f"${total_visible:,.2f}")
             st.divider()
 
-            # --- BOTÓN DE WHATSAPP ---
-            # (Aquí también debe haber 8 espacios de margen)
-            tel_sucio = p.get('cliente_telefono', '')
-            tel_limpio = "".join(filter(str.isdigit, str(tel_sucio)))
-            
-            if tel_limpio:
-                link_wa = f"https://wa.me/{tel_limpio}"
-                st.link_button("🟢 Ir al WhatsApp del Cliente", link_wa, type="primary")
+            for p, nombre_cli in pedidos_mostrados:
+                saldo = float(p.get('total_operacion') or 0) - float(p.get('anticipo_monto') or 0)
+                
+                with st.expander(f"🆔 {p['id']} | 🪑 {nombre_cli} | SALDO: ${saldo:,.2f}"):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.markdown("### 💰 Pago")
+                        st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
+                        st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
+                    with c2:
+                        st.markdown("### 🛋️ Producto")
+                        st.write(f"**Color:** {p['color']}")
+                        st.write(f"**Notas:** {p['nota']}")
+                    
+                    st.divider()
+                    
+                    # WhatsApp
+                    tel = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
+                    if tel:
+                        st.link_button("🟢 Ir al WhatsApp", f"https://wa.me/{tel}", type="primary")
+                    
+                    # PDF
+                    if st.button(f"📄 Generar Remito #{p['id']}", key=f"pdf_{p['id']}"):
+                        pdf = FPDF()
+                        pdf.add_page()
+                        pdf.set_font("Arial", "B", 16)
+                        pdf.cell(0, 10, "INNOVA SOFA - REMITO", ln=True, align="C")
+                        pdf.set_font("Arial", "", 12)
+                        pdf.ln(10)
+                        pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
+                        pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
+                        pdf.cell(0, 10, f"Saldo: ${saldo:,.2f}", ln=True)
+                        
+                        nom_f = f"Remito_{p['id']}.pdf"
+                        pdf.output(nom_f)
+                        with open(nom_f, "rb") as f:
+                            st.download_button("⬇️ Descargar", f, file_name=nom_f, key=f"dl_{p['id']}")
 
-             # --- GENERADOR DE PDF ---
-            if st.button(f"📄 Generar Remito #{p['id']}", key=f"pdf_{p['id']}"):
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", "B", 16)
-                pdf.cell(0, 10, "INNOVA SOFÁ - REMITO", ln=True, align="C")
-                pdf.set_font("Arial", "", 12)
-                pdf.ln(10)
-                pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
-                pdf.cell(0, 10, f"Detalle: {p['nota']}", ln=True)
-                pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
-                pdf.ln(5)
-                pdf.cell(0, 10, f"SALDO A COBRAR: ${saldo:,.2f}", ln=True)
-                                
-                nombre_pdf = f"Remito_{p['id']}.pdf"
-                pdf.output(nombre_pdf)
-                                
-                with open(nombre_pdf, "rb") as f:
-                        st.download_button("⬇️ Descargar PDF", f, file_name=nombre_pdf)
-                        # --- BOTÓN TERMINAR ---
-                        if st.button("Marcar Terminado", key=f"fin_{p['id']}"):
-                            supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
-                            st.success("¡Pedido finalizado!")
-                            st.rerun()
-                        else:
-                            st.info("No hay pedidos pendientes.")
+                    if st.button("✅ Marcar Terminado", key=f"fin_{p['id']}"):
+                        supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
+                        st.success("¡Pedido finalizado!")
+                        st.rerun()
+        else:
+            st.info("No hay pedidos pendientes.")
 
-        # --- OPCIÓN 4: PEDIDOS TERMINADOS (EL HISTORIAL) ---
-    elif opcion == "Pedidos Terminados":
-        st.header("✅ Historial de Pedidos Finalizados")
+    # --- OPCIÓN 3: REFORZAR SEÑA (ESTA SE HABÍA ROTO) ---
+    elif opcion == "Reforzar Seña":
+        st.header("💰 Reforzar Seña de Pedido")
+        # Traemos pedidos pendientes para elegir a quién sumarle plata
+        res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").eq("estado", "Pendiente").execute()
         
-        # Traemos solo los que tienen estado "Terminado"
+        if res.data:
+            opciones_pedidos = {f"ID {p['id']} - {p['clientes']['nombre_apellido']}": p['id'] for p in res.data}
+            seleccion = st.selectbox("Seleccioná el pedido:", list(opciones_pedidos.keys()))
+            id_p = opciones_pedidos[seleccion]
+            
+            monto_extra = st.number_input("Monto del nuevo refuerzo $", min_value=0.0)
+            
+            if st.button("Sumar a la Seña"):
+                # Buscamos el anticipo actual
+                pedido_act = supabase.table("pedidos").select("anticipo_monto").eq("id", id_p).single().execute()
+                nuevo_total_seña = float(pedido_act.data['anticipo_monto'] or 0) + monto_extra
+                
+                supabase.table("pedidos").update({"anticipo_monto": nuevo_total_seña}).eq("id", id_p).execute()
+                st.success("¡Seña actualizada correctamente!")
+        else:
+            st.info("No hay pedidos pendientes para reforzar.")
+
+    # --- OPCIÓN 4: TERMINADOS ---
+    elif opcion == "Pedidos Terminados":
+        st.header("✅ Historial de Finalizados")
         res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").eq("estado", "Terminado").order('id', desc=True).execute()
         
         if res.data:
-            # Buscador para el historial
-            busqueda_historial = st.text_input("🔍 Buscar en el historial:", "").lower()
-            
             for p in res.data:
                 nombre_cli = p['clientes']['nombre_apellido'] if p.get('clientes') else "Cliente"
-                
-                # Filtro de búsqueda
-                if busqueda_historial in nombre_cli.lower() or busqueda_historial in p['nota'].lower():
-                    # Usamos un color gris para que se note que ya pasó
-                    with st.expander(f"📦 ID: {p['id']} | {nombre_cli}"):
-                        st.write(f"**Color:** {p['color']}")
-                        st.write(f"**Notas:** {p['nota']}")
-                        st.write(f"**Total que se cobró:** ${float(p['total_operacion']):,.2f}")
-                        
-                        # Por si te equivocaste y querés volverlo a pendientes
-                        if st.button("Reabrir Pedido", key=f"reabrir_{p['id']}"):
-                            supabase.table("pedidos").update({"estado": "Pendiente"}).eq("id", p['id']).execute()
-                            st.success("El pedido volvió a pendientes")
-                            st.rerun()
-        else:
-            st.info("Aún no tienes pedidos marcados como terminados.")
+                with st.expander(f"📦 ID: {p['id']} | {nombre_cli}"):
+                    st.write(f"**Color:** {p['color']}")
+                    if st.button("Reabrir", key=f"re_{p['id']}"):
+                        supabase.table("pedidos").update({"estado": "Pendiente"}).eq("id", p['id']).execute()
+                        st.rerun()
