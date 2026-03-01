@@ -42,6 +42,20 @@ if check_password():
 
     opcion = st.sidebar.selectbox("Menú", ["Registrar Pedido", "Ver Pedidos Pendientes", "Reforzar Seña", "Pedidos Terminados"])
 
+    # --- DEBAJO DE TU SELECTBOX DE MENÚ ---
+    st.sidebar.divider() # Una línea para separar
+    st.sidebar.subheader("🏢 Área Mayorista")
+
+# Botón que activa la vista mayorista
+if st.sidebar.button("📦 Nueva Venta Mayorista", use_container_width=True):
+    st.session_state.vista_actual = "Mayorista"
+    st.rerun()
+
+# Botón para ver los clientes fijos
+if st.sidebar.button("👥 Mis Mayoristas", use_container_width=True):
+    st.session_state.vista_actual = "Lista_Mayoristas"
+    st.rerun()
+
     # --- OPCIÓN 1: REGISTRAR ---
     if opcion == "Registrar Pedido":
         st.header("📝 Cargar Nuevo Remito")
