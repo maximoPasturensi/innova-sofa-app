@@ -157,16 +157,39 @@ if check_password():
         else:
             st.info("No hay pedidos pendientes para reforzar.")
 
-    # --- OPCIÓN 4: TERMINADOS ---
+    # --- OPCIÓN 4: PEDIDOS TERMINADOS (EL HISTORIAL) ---
     elif opcion == "Pedidos Terminados":
-        st.header("✅ Historial de Finalizados")
+        st.header("✅ Historial de Pedidos Finalizados")
+        
+        # Traemos los datos incluyendo el nombre del cliente
         res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").eq("estado", "Terminado").order('id', desc=True).execute()
         
         if res.data:
+            busqueda_h = st.text_input("🔍 Buscar en el historial (Nombre o detalle):", "").lower()
+            
             for p in res.data:
                 nombre_cli = p['clientes']['nombre_apellido'] if p.get('clientes') else "Cliente"
-                with st.expander(f"📦 ID: {p['id']} | {nombre_cli}"):
-                    st.write(f"**Color:** {p['color']}")
-                    if st.button("Reabrir", key=f"re_{p['id']}"):
-                        supabase.table("pedidos").update({"estado": "Pendiente"}).eq("id", p['id']).execute()
-                        st.rerun()
+                # Calculamos el total para mostrarlo
+                total_cobrado = float(p.get('total_operacion') or 0)
+                
+                if busqueda_h in nombre_cli.lower() or busqueda_h in (p['nota'] or "").lower():
+                    with st.expander(f"📦 ID: {p['id']} | {nombre_cli} | Cobrado: ${total_cobrado:,.2f}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("### 💰 Información de Pago")
+                            st.write(f"**Total Cobrado:** ${total_cobrado:,.2f}")
+                            st.write(f"**Anticipo inicial:** ${float(p['anticipo_monto']):,.2f}")
+                        with col2:
+                            st.markdown("### 🛋️ Detalle del Producto")
+                            st.write(f"**Color:** {p['color']}")
+                            st.write(f"**Notas:** {p['nota']}")
+                        
+                        st.divider()
+                        
+                        # Botón para devolver a pendientes por si se marcó por error
+                        if st.button(f"🔄 Reabrir Pedido #{p['id']}", key=f"re_{p['id']}"):
+                            supabase.table("pedidos").update({"estado": "Pendiente"}).eq("id", p['id']).execute()
+                            st.success("Pedido devuelto a la lista de pendientes")
+                            st.rerun()
+        else:
+            st.info("Aún no tenés pedidos terminados.")
