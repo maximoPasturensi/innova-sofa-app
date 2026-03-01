@@ -72,43 +72,48 @@ if check_password():
     elif opcion == "Ver Pedidos Pendientes":
         st.header("📋 Tablero de Producción - Fábrica")
         
-        # Traemos todos los pedidos
         res = supabase.table("pedidos").select("*").order('id', desc=True).execute()
         
         if res.data:
-            # 1. ARMAMOS LA TABLA RESUMEN
             datos_tabla = []
             for p in res.data:
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
                 nombre = cli.data[0]['nombre_apellido'] if cli.data else "S/N"
                 
-                # Calculamos el saldo
+                # Datos financieros
                 total = float(p['total_operacion'] or 0)
                 anticipo = float(p['anticipo_monto'] or 0)
+                metodo = p.get('anticipo_metodo', 'N/A') # Traemos la procedencia (ej: TRF JAVI)
                 saldo = total - anticipo
                 
                 datos_tabla.append({
                     "Cliente": nombre,
-                    "Estado": p['estado'],
-                    "Saldo $": f"${saldo:,.2f}",
-                    "Color": p['color']
+                    "Total $": f"${total:,.2f}",
+                    "Anticipo $": f"${anticipo:,.2f}",
+                    "Procedencia": metodo,
+                    "Saldo a Cobrar $": f"${saldo:,.2f}",
+                    "Estado": p['estado']
                 })
             
-            # Mostramos la tabla pro
+            # Mostramos la tabla completa
             st.table(datos_tabla)
             st.divider()
             
-            # 2. DETALLES CON BOTONES DE ACCIÓN
-            st.subheader("🔍 Gestión de Pedidos")
+            # Detalles extra (Color y Notas)
+            st.subheader("🔍 Detalles del Pedido")
             for p in res.data:
-                # Buscamos nombre de nuevo para el expander
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
                 nombre_cli = cli.data[0]['nombre_apellido'] if cli.data else "Cliente"
                 
-                with st.expander(f"🪑 {nombre_cli} - {p['estado']}"):
-                    st.write(f"**Detalle:** {p['nota']}")
+                with st.expander(f"🪑 {nombre_cli} - Ver Tela y Notas"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Color/Tela:** {p['color']}")
+                    with col2:
+                        st.write(f"**Notas:** {p['nota']}")
+                    
                     if st.button("Marcar como Terminado", key=f"btn_{p['id']}"):
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
                         st.rerun()
         else:
-            st.info("No hay pedidos pendientes por ahora.")
+            st.info("No hay pedidos pendientes.")
