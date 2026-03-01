@@ -71,50 +71,57 @@ if check_password():
                 }).execute()
                 st.success(f"✅ ¡Pedido de {nombre} guardado!")
 
-    # --- OPCIÓN 2: VER TABLERO ---
+    # --- OPCIÓN 2: VER TABLERO (CON BUSCADOR) ---
     elif opcion == "Ver Pedidos Pendientes":
         st.header("📋 Tablero de Producción")
+        
+        # 1. Traemos los datos de la nube
         res = supabase.table("pedidos").select("*").eq("estado", "Pendiente").order('id', desc=True).execute()
         
         if res.data:
-            # Cálculo del total de la calle
-            total_a_cobrar = sum((float(p['total_operacion'] or 0) - float(p['anticipo_monto'] or 0)) for p in res.data)
-            st.metric(label="💰 TOTAL EN LA CALLE", value=f"${total_a_cobrar:,.2f}")
-            st.divider()
+            # --- NUEVO: BARRA DE BÚSQUEDA ---
+            busqueda = st.text_input("🔍 Buscar por nombre de cliente o detalle:", "").lower()
 
+            # Procesamos los datos para poder filtrar
+            pedidos_mostrados = []
             for p in res.data:
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
                 nombre_cli = cli.data[0]['nombre_apellido'] if cli.data else "Cliente"
+                
+                # Si el buscador está vacío o coincide con el nombre/nota/color, lo agregamos
+                if busqueda in nombre_cli.lower() or busqueda in p['nota'].lower() or busqueda in p['color'].lower():
+                    pedidos_mostrados.append((p, nombre_cli))
+
+            # 2. CÁLCULO DEL TOTAL (Solo de lo que se ve en pantalla)
+            total_visible = sum((float(item[0]['total_operacion'] or 0) - float(item[0]['anticipo_monto'] or 0)) for item in pedidos_mostrados)
+            
+            col_met, col_info = st.columns([2, 1])
+            with col_met:
+                st.metric(label="💰 SALDO PENDIENTE (FILTRADO)", value=f"${total_visible:,.2f}")
+            with col_info:
+                st.write(f"Mostrando **{len(pedidos_mostrados)}** pedidos")
+            
+            st.divider()
+
+            # 3. MOSTRAR LAS TARJETAS FILTRADAS
+            for p, nombre_cli in pedidos_mostrados:
                 saldo = float(p['total_operacion'] or 0) - float(p['anticipo_monto'] or 0)
 
                 with st.expander(f"🆔 {p['id']} | 🪑 {nombre_cli} | SALDO: ${saldo:,.2f}"):
                     col1, col2 = st.columns(2)
                     with col1:
+                        st.markdown("### 💰 Pago")
                         st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
                         st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f} ({p['anticipo_metodo']})")
+                        st.error(f"**SALDO:** ${saldo:,.2f}")
                     with col2:
+                        st.markdown("### 🛋️ Producto")
                         st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
                     
                     if st.button("Marcar Terminado", key=f"fin_{p['id']}"):
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
+                        st.success(f"¡Pedido {p['id']} terminado!")
                         st.rerun()
         else:
             st.info("No hay pedidos pendientes.")
-
-    # --- OPCIÓN 3: REFORZAR SEÑA ---
-    elif opcion == "Reforzar Seña":
-        st.header("💰 Registrar Refuerzo de Dinero")
-        res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").eq("estado", "Pendiente").execute()
-        
-        if res.data:
-            opciones = {f"ID: {p['id']} - {p['clientes']['nombre_apellido']}": p for p in res.data}
-            seleccion = st.selectbox("Seleccioná el pedido:", list(opciones.keys()))
-            pedido = opciones[seleccion]
-            
-            refuerzo = st.number_input("Monto del refuerzo $:", min_value=0.0)
-            if st.button("Confirmar Pago"):
-                nuevo_monto = float(pedido['anticipo_monto']) + refuerzo
-                supabase.table("pedidos").update({"anticipo_monto": nuevo_monto}).eq("id", pedido['id']).execute()
-                st.success("¡Saldo actualizado!")
-                st.balloons()
