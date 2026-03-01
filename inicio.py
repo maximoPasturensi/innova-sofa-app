@@ -243,10 +243,8 @@ if check_password():
                 # --- OPCIÓN 4: PEDIDOS TERMINADOS (EL HISTORIAL) ---
         elif opcion == "Pedidos Terminados":
             st.header("✅ Historial de Pedidos Finalizados")
-        
-            # Traemos los datos incluyendo el nombre del cliente
             res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").eq("estado", "Terminado").order('id', desc=True).execute()
-        
+            
         if res.data:
             busqueda_h = st.text_input("🔍 Buscar en el historial (Nombre o detalle):", "").lower()
             
