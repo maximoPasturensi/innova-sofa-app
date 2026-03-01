@@ -123,7 +123,6 @@ if check_password():
                     st.divider()
 
                     # --- GENERADOR DE PDF ---
-                    from fpdf import FPDF
                     if st.button(f"📄 Generar Remito #{p['id']}", key=f"pdf_{p['id']}"):
                         pdf = FPDF()
                         pdf.add_page()
