@@ -75,45 +75,31 @@ if check_password():
         res = supabase.table("pedidos").select("*").order('id', desc=True).execute()
         
         if res.data:
-            datos_tabla = []
+            # --- ACÁ EMPIEZAN LOS EXPANDERS DIRECTAMENTE ---
             for p in res.data:
-                cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
-                nombre = cli.data[0]['nombre_apellido'] if cli.data else "S/N"
-                
-                # Datos financieros
-                total = float(p['total_operacion'] or 0)
-                anticipo = float(p['anticipo_monto'] or 0)
-                metodo = p.get('anticipo_metodo', 'N/A') # Traemos la procedencia (ej: TRF JAVI)
-                saldo = total - anticipo
-                
-                datos_tabla.append({
-                    "Cliente": nombre,
-                    "Total $": f"${total:,.2f}",
-                    "Anticipo $": f"${anticipo:,.2f}",
-                    "Procedencia": metodo,
-                    "Saldo a Cobrar $": f"${saldo:,.2f}",
-                    "Estado": p['estado']
-                })
-            
-            # Mostramos la tabla completa
-            st.table(datos_tabla)
-            st.divider()
-            
-            # Detalles extra (Color y Notas)
-            st.subheader("🔍 Detalles del Pedido")
-            for p in res.data:
+                # Buscamos el nombre del cliente
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
                 nombre_cli = cli.data[0]['nombre_apellido'] if cli.data else "Cliente"
                 
-                with st.expander(f"🪑 {nombre_cli} - Ver Tela y Notas"):
+                # Cálculos (esto lo necesitás para el título del expander)
+                total = float(p['total_operacion'] or 0)
+                anticipo = float(p['anticipo_monto'] or 0)
+                saldo = total - anticipo
+                metodo = p.get('anticipo_metodo', 'N/A')
+
+                # Título con el SALDO bien a la vista
+                with st.expander(f"🪑 {nombre_cli} | SALDO: ${saldo:,.2f} | {p['estado']}"):
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.write(f"**Color/Tela:** {p['color']}")
+                        st.markdown("### 💰 Pago")
+                        st.write(f"**Total:** ${total:,.2f}")
+                        st.write(f"**Anticipo:** ${anticipo:,.2f} ({metodo})")
+                        st.error(f"**SALDO:** ${saldo:,.2f}")
                     with col2:
+                        st.markdown("### 🛋️ Producto")
+                        st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
                     
-                    if st.button("Marcar como Terminado", key=f"btn_{p['id']}"):
+                    if st.button("Marcar Terminado", key=f"btn_{p['id']}"):
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
                         st.rerun()
-        else:
-            st.info("No hay pedidos pendientes.")
