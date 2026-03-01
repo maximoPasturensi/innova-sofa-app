@@ -41,7 +41,7 @@ if check_password():
     st.title("🛋️ Sistema de Gestión Innova Sofá")
 
     # Definimos el menú con las 3 opciones
-    opcion = st.sidebar.selectbox("Menú", ["Registrar Pedido", "Ver Pedidos Pendientes", "Reforzar Seña"])
+    opcion = st.sidebar.selectbox("Menú", ["Registrar Pedido", "Ver Pedidos Pendientes", "Reforzar Seña", "Pedidos Terminados"])
 
     # --- OPCIÓN 1: REGISTRAR ---
     if opcion == "Registrar Pedido":
@@ -125,3 +125,33 @@ if check_password():
                         st.rerun()
         else:
             st.info("No hay pedidos pendientes.")
+
+        # --- OPCIÓN 4: PEDIDOS TERMINADOS (EL HISTORIAL) ---
+    elif opcion == "Pedidos Terminados":
+        st.header("✅ Historial de Pedidos Finalizados")
+        
+        # Traemos solo los que tienen estado "Terminado"
+        res = supabase.table("pedidos").select("*, clientes(nombre_apellido)").eq("estado", "Terminado").order('id', desc=True).execute()
+        
+        if res.data:
+            # Buscador para el historial
+            busqueda_historial = st.text_input("🔍 Buscar en el historial:", "").lower()
+            
+            for p in res.data:
+                nombre_cli = p['clientes']['nombre_apellido'] if p.get('clientes') else "Cliente"
+                
+                # Filtro de búsqueda
+                if busqueda_historial in nombre_cli.lower() or busqueda_historial in p['nota'].lower():
+                    # Usamos un color gris para que se note que ya pasó
+                    with st.expander(f"📦 ID: {p['id']} | {nombre_cli}"):
+                        st.write(f"**Color:** {p['color']}")
+                        st.write(f"**Notas:** {p['nota']}")
+                        st.write(f"**Total que se cobró:** ${float(p['total_operacion']):,.2f}")
+                        
+                        # Por si te equivocaste y querés volverlo a pendientes
+                        if st.button("Reabrir Pedido", key=f"reabrir_{p['id']}"):
+                            supabase.table("pedidos").update({"estado": "Pendiente"}).eq("id", p['id']).execute()
+                            st.success("El pedido volvió a pendientes")
+                            st.rerun()
+        else:
+            st.info("Aún no tienes pedidos marcados como terminados.")
