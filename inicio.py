@@ -105,60 +105,56 @@ if check_password():
                 st.write(f"Mostrando **{len(pedidos_mostrados)}** pedidos")
             
             st.divider()
+            saldo = float(p.get('total_operacion') or 0) - float(p.get('anticipo_monto') or 0)
+            with st.expander(f"🆔 {p['id']} | 🪑 {nombre_cli} | SALDO: ${saldo:,.2f}"):
+                col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 💰 Pago")
+                st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
+                st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
+            with col2:
+                st.markdown("### 🛋️ Producto")
+                st.write(f"**Color:** {p['color']}")
+                st.write(f"**Notas:** {p['nota']}")
             
-            # --- EL BOTÓN VA ACÁ ADENTRO (Bien identado) ---
-            tel_limpio = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
+            st.divider()
+
+            # --- BOTÓN DE WHATSAPP ---
+            # (Aquí también debe haber 8 espacios de margen)
+            tel_sucio = p.get('cliente_telefono', '')
+            tel_limpio = "".join(filter(str.isdigit, str(tel_sucio)))
+            
             if tel_limpio:
-                link_directo = f"https://wa.me/{tel_limpio}"
-                st.link_button("🟢 Ir al WhatsApp del Cliente", link_directo, type="primary")
-            else:
-                st.warning("⚠️ No hay teléfono cargado")
+                link_wa = f"https://wa.me/{tel_limpio}"
+                st.link_button("🟢 Ir al WhatsApp del Cliente", link_wa, type="primary")
 
-            # 3. MOSTRAR LAS TARJETAS FILTRADAS
-            for p, nombre_cli in pedidos_mostrados:
-                saldo = float(p['total_operacion'] or 0) - float(p['anticipo_monto'] or 0)
-
-                with st.expander(f"🆔 {p['id']} | 🪑 {nombre_cli} | SALDO: ${saldo:,.2f}"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("### 💰 Pago")
-                        st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
-                        st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
-                        st.error(f"**SALDO:** ${saldo:,.2f}")
-                    with col2:
-                        st.markdown("### 🛋️ Producto")
-                        st.write(f"**Color:** {p['color']}")
-                        st.write(f"**Notas:** {p['nota']}")
-
-                    st.divider()
-
-                    # --- GENERADOR DE PDF ---
-                    if st.button(f"📄 Generar Remito #{p['id']}", key=f"pdf_{p['id']}"):
-                        pdf = FPDF()
-                        pdf.add_page()
-                        pdf.set_font("Arial", "B", 16)
-                        pdf.cell(0, 10, "INNOVA SOFÁ - REMITO", ln=True, align="C")
-                        pdf.set_font("Arial", "", 12)
-                        pdf.ln(10)
-                        pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
-                        pdf.cell(0, 10, f"Detalle: {p['nota']}", ln=True)
-                        pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
-                        pdf.ln(5)
-                        pdf.cell(0, 10, f"SALDO A COBRAR: ${saldo:,.2f}", ln=True)
-                        
-                        nombre_pdf = f"Remito_{p['id']}.pdf"
-                        pdf.output(nombre_pdf)
-                        
-                        with open(nombre_pdf, "rb") as f:
-                            st.download_button("⬇️ Descargar PDF", f, file_name=nombre_pdf)
+             # --- GENERADOR DE PDF ---
+            if st.button(f"📄 Generar Remito #{p['id']}", key=f"pdf_{p['id']}"):
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 10, "INNOVA SOFÁ - REMITO", ln=True, align="C")
+                pdf.set_font("Arial", "", 12)
+                pdf.ln(10)
+                pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
+                pdf.cell(0, 10, f"Detalle: {p['nota']}", ln=True)
+                pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
+                pdf.ln(5)
+                pdf.cell(0, 10, f"SALDO A COBRAR: ${saldo:,.2f}", ln=True)
+                                
+                nombre_pdf = f"Remito_{p['id']}.pdf"
+                pdf.output(nombre_pdf)
+                                
+            with open(nombre_pdf, "rb") as f:
+                    st.download_button("⬇️ Descargar PDF", f, file_name=nombre_pdf)
 
                     # --- BOTÓN TERMINAR ---
                     if st.button("Marcar Terminado", key=f"fin_{p['id']}"):
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
                         st.success("¡Pedido finalizado!")
                         st.rerun()
-        else:
-            st.info("No hay pedidos pendientes.")
+                    else:
+                        st.info("No hay pedidos pendientes.")
 
         # --- OPCIÓN 4: PEDIDOS TERMINADOS (EL HISTORIAL) ---
     elif opcion == "Pedidos Terminados":
