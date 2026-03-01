@@ -184,8 +184,9 @@ if check_password():
                         st.link_button("🟢 Ir al WhatsApp", f"https://wa.me/{tel}", type="primary")
                     
                     # PDF
-                        if st.button(f"📄 Remito #{p['id']}", key=f"pend_pdf_{p['id']}"): # Agregamos 'pend_'
+                        if st.button(f"📄 Remito #{p['id']}", key=f"pend_pdf_{p['id']}"):
                             pdf = FPDF()
+                            pdf.add_page()
                             pdf.add_page()
                             pdf.set_font("Arial", "B", 16)
                             pdf.cell(0, 10, "INNOVA SOFA - REMITO", ln=True, align="C")
@@ -197,8 +198,14 @@ if check_password():
                         
                             nom_f = f"Remito_{p['id']}.pdf"
                             pdf.output(nom_f)
-                        with open(nom_f, "rb") as f:
-                            st.download_button("⬇️ Descargar", f, file_name=nom_f, key=f"dl_{p['id']}")
+                            with open(nom_f, "rb") as f:
+                                st.download_button(
+                                    label="⬇️ Descargar",
+                                    data=f,
+                                    file_name=nom_f,
+                                    mime="application/pdf",
+                                    key=f"dl_{p['id']}"
+                                )
 
                     if st.button("✅ Marcar Terminado", key=f"fin_{p['id']}"):
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
