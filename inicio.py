@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client
 import pandas as pd
+from fpdf import FPDF
 
 # 1. Configuración de conexión
 # En lugar de pegar el texto de la clave, le decimos que la busque en secrets
@@ -112,16 +113,40 @@ if check_password():
                     with col1:
                         st.markdown("### 💰 Pago")
                         st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
-                        st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f} ({p['anticipo_metodo']})")
+                        st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
                         st.error(f"**SALDO:** ${saldo:,.2f}")
                     with col2:
                         st.markdown("### 🛋️ Producto")
                         st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
-                    
+
+                    st.divider()
+
+                    # --- GENERADOR DE PDF ---
+                    from fpdf import FPDF
+                    if st.button(f"📄 Generar Remito #{p['id']}", key=f"pdf_{p['id']}"):
+                        pdf = FPDF()
+                        pdf.add_page()
+                        pdf.set_font("Arial", "B", 16)
+                        pdf.cell(0, 10, "INNOVA SOFÁ - REMITO", ln=True, align="C")
+                        pdf.set_font("Arial", "", 12)
+                        pdf.ln(10)
+                        pdf.cell(0, 10, f"Cliente: {nombre_cli}", ln=True)
+                        pdf.cell(0, 10, f"Detalle: {p['nota']}", ln=True)
+                        pdf.cell(0, 10, f"Color: {p['color']}", ln=True)
+                        pdf.ln(5)
+                        pdf.cell(0, 10, f"SALDO A COBRAR: ${saldo:,.2f}", ln=True)
+                        
+                        nombre_pdf = f"Remito_{p['id']}.pdf"
+                        pdf.output(nombre_pdf)
+                        
+                        with open(nombre_pdf, "rb") as f:
+                            st.download_button("⬇️ Descargar PDF", f, file_name=nombre_pdf)
+
+                    # --- BOTÓN TERMINAR ---
                     if st.button("Marcar Terminado", key=f"fin_{p['id']}"):
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
-                        st.success(f"¡Pedido {p['id']} terminado!")
+                        st.success("¡Pedido finalizado!")
                         st.rerun()
         else:
             st.info("No hay pedidos pendientes.")
