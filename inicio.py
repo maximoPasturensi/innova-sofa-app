@@ -103,7 +103,7 @@ if check_password():
                         st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
                         # --- EL CARTEL ROJO QUE FALTA ---
-                        st.error(f"### 🚩 RESTAN: ${saldo:,.2f}")
+                        st.markdown(f":red[**🚩 RESTAN: ${saldo:,.2f}**]")
                     
                     st.divider()
                     
