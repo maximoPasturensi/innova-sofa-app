@@ -54,6 +54,8 @@ if check_password():
             anticipo = st.number_input("Anticipo $", min_value=0.0)
             metodo = st.text_input("Método de Anticipo (Ej: TRF JAVI)")
             notas = st.text_area("Descripción del Artículo")
+            whatsapp = st.text_input("📱 Número del cliente", placeholder="Ej: 1150361256")
+            st.caption("💡 Tip: Poné el 11 adelante para que el botón directo funcione perfecto.")
             
             if st.form_submit_button("Guardar Pedido en la Nube"):
                 # Primero guardamos el cliente
@@ -103,6 +105,14 @@ if check_password():
                 st.write(f"Mostrando **{len(pedidos_mostrados)}** pedidos")
             
             st.divider()
+            
+            # --- EL BOTÓN VA ACÁ ADENTRO (Bien identado) ---
+            tel_limpio = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
+            if tel_limpio:
+                link_directo = f"https://wa.me/{tel_limpio}"
+                st.link_button("🟢 Ir al WhatsApp del Cliente", link_directo, type="primary")
+            else:
+                st.warning("⚠️ No hay teléfono cargado")
 
             # 3. MOSTRAR LAS TARJETAS FILTRADAS
             for p, nombre_cli in pedidos_mostrados:
