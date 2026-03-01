@@ -204,10 +204,10 @@ if check_password():
                                     data=f,
                                     file_name=nom_f,
                                     mime="application/pdf",
-                                    key=f"dl_{p['id']}"
+                                    key=f"pend_dl_{p['id']}"
                                 )
 
-                    if st.button("✅ Marcar Terminado", key=f"fin_{p['id']}"):
+                    if st.button("✅ Marcar Terminado", key=f"pend_fin_{p['id']}"): # Agregamos 'pend_'
                         supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
                         st.success("¡Pedido finalizado!")
                         st.rerun()
