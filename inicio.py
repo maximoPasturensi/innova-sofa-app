@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client
 import pandas as pd
 from fpdf import FPDF
+from datetime import datetime
 import urllib.parse
 
 # 1. Configuración de conexión
@@ -73,36 +74,93 @@ if check_password():
     # --- OPCIÓN 2: VER TABLERO ---
     elif opcion == "Ver Pedidos Pendientes":
         st.header("📋 Tablero de Producción")
+        
+        # 1. Traemos los datos
         res = supabase.table("pedidos").select("*").eq("estado", "Pendiente").order('id', desc=True).execute()
         
         if res.data:
-            busqueda = st.text_input("🔍 Buscar por nombre de cliente o detalle:", "").lower()
-            pedidos_mostrados = []
+            # --- PUNTO 2: DASHBOARD DE CAJA ---
+            total_operacion_gral = sum(float(p['total_operacion'] or 0) for p in res.data)
+            total_senas_gral = sum(float(p['anticipo_monto'] or 0) for p in res.data)
+            total_calle = total_operacion_gral - total_senas_gral
             
+            d1, d2, d3 = st.columns(3)
+            with d1:
+                st.metric("💰 TOTAL EN LA CALLE", f"${total_calle:,.2f}")
+            with d2:
+                st.metric("🛋️ PEDIDOS ACTIVOS", len(res.data))
+            with d3:
+                st.metric("📥 SEÑAS COBRADAS", f"${total_senas_gral:,.2f}")
+            
+            st.divider()
+
+            # --- BUSCADOR ---
+            busqueda = st.text_input("🔍 Buscar por nombre, color o detalle:", "").lower()
+            pedidos_mostrados = []
             for p in res.data:
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
                 nombre_cli = cli.data[0]['nombre_apellido'] if cli.data else "Cliente"
                 if busqueda in nombre_cli.lower() or busqueda in (p['nota'] or "").lower() or busqueda in (p['color'] or "").lower():
                     pedidos_mostrados.append((p, nombre_cli))
 
-            total_visible = sum((float(item[0]['total_operacion'] or 0) - float(item[0]['anticipo_monto'] or 0)) for item in pedidos_mostrados)
-            st.metric(label="💰 SALDO PENDIENTE (FILTRADO)", value=f"${total_visible:,.2f}")
-            st.divider()
-
+            # --- LISTADO CON SEMÁFORO DE DÍAS ---
             for p, nombre_cli in pedidos_mostrados:
                 saldo = float(p.get('total_operacion') or 0) - float(p.get('anticipo_monto') or 0)
                 
-                with st.expander(f"🆔 {p['id']} | 🪑 {nombre_cli} | SALDO: ${saldo:,.2f}"):
+                # CÁLCULO DE DÍAS (PUNTO 3)
+                fecha_pedido_str = p.get('fecha_creacion')
+                if fecha_pedido_str:
+                    # Convierte la fecha de Supabase a algo que Python entienda
+                    fecha_pedido = datetime.fromisoformat(fecha_pedido_str.replace('Z', '+00:00'))
+                    hoy = datetime.now(fecha_pedido.tzinfo)
+                    dias = (hoy - fecha_pedido).days
+                else:
+                    dias = 0
+
+                # Lógica de colores según tus reglas
+                if dias >= 25:
+                    alerta = "🔴"
+                    msg_dias = f":red[**URGENTE: {dias} días**]"
+                elif 10 <= dias < 25:
+                    alerta = "🟠"
+                    msg_dias = f":orange[**EN ESPERA: {dias} días**]"
+                else:
+                    alerta = "🟢"
+                    msg_dias = f":green[**NUEVO: {dias} días**]"
+
+                with st.expander(f"{alerta} {dias}d | {nombre_cli} | ID: {p['id']}"):
+                    st.write(f"⏱️ Tiempo en taller: {msg_dias}")
+                    
                     c1, c2 = st.columns(2)
                     with c1:
                         st.markdown("### 💰 Pago")
                         st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
                         st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
-                        st.markdown(f":red[**🚩 RESTAN: ${saldo:,.2f}**]")
                     with c2:
                         st.markdown("### 🛋️ Producto")
                         st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
+                        # El cartel rojo a la derecha que te gustó
+                        st.error(f"#### 🚩 RESTAN: ${saldo:,.2f}")
+                    
+                    st.divider()
+                    
+                    # Botones alineados
+                    col_b1, col_b2, col_b3 = st.columns(3)
+                    with col_b1:
+                        tel = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
+                        if tel:
+                            st.link_button("🟢 WhatsApp", f"https://wa.me/{tel}")
+                    with col_b2:
+                        if st.button(f"📄 Remito #{p['id']}", key=f"pdf_{p['id']}"):
+                            # Aquí el código de PDF que ya tenías...
+                            st.info("Generando PDF...")
+                    with col_b3:
+                        if st.button("✅ Terminar", key=f"fin_{p['id']}"):
+                            supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
+                            st.rerun()
+                        else:
+                            st.info("No hay pedidos pendientes.")
                     
                     st.divider()
                     
