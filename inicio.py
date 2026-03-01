@@ -105,7 +105,7 @@ if check_password():
                 
                 d1, d2, d3 = st.columns(3)
                 with d1:
-                    st.metric("💰 TOTAL EN LA CALLE", f"${total_calle:,.2f}")
+                    st.metric("💰 TOTAL A COBRAR", f"${total_calle:,.2f}")
                 with d2:
                     st.metric("🛋️ PEDIDOS ACTIVOS", len(res.data))
                 with d3:
@@ -164,7 +164,7 @@ if check_password():
                         # WhatsApp
                         tel = "".join(filter(str.isdigit, str(p.get('cliente_telefono', ''))))
                         if tel:
-                            st.link_button("✅ Ir al WhatsApp", f"https://wa.me/{tel}")
+                            st.link_button("Ir al WhatsApp", f"https://wa.me/{tel}")
                         
                             # PDF
                             if st.button(f"📄 Remito #{p['id']}", key=f"pend_pdf_{p['id']}"):
@@ -194,7 +194,7 @@ if check_password():
                             supabase.table("pedidos").update({"estado": "Terminado"}).eq("id", p['id']).execute()
                             st.success("¡Pedido finalizado!")
                             st.rerun()
-                            
+
                         # --- OPCIÓN 3: REFORZAR SEÑA  ---
         elif opcion == "Reforzar Seña":
                 st.header("💰 Reforzar Seña de Pedido")
