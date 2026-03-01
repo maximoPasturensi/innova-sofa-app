@@ -98,12 +98,11 @@ if check_password():
                         st.markdown("### 💰 Pago")
                         st.write(f"**Total:** ${float(p['total_operacion']):,.2f}")
                         st.write(f"**Anticipo:** ${float(p['anticipo_monto']):,.2f}")
+                        st.markdown(f":red[**🚩 RESTAN: ${saldo:,.2f}**]")
                     with c2:
                         st.markdown("### 🛋️ Producto")
                         st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
-                        # --- EL CARTEL ROJO QUE FALTA ---
-                        st.markdown(f":red[**🚩 RESTAN: ${saldo:,.2f}**]")
                     
                     st.divider()
                     
