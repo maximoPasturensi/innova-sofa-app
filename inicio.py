@@ -102,6 +102,8 @@ if check_password():
                         st.markdown("### 🛋️ Producto")
                         st.write(f"**Color:** {p['color']}")
                         st.write(f"**Notas:** {p['nota']}")
+                        # --- EL CARTEL ROJO QUE FALTA ---
+                        st.error(f"### 🚩 RESTAN: ${saldo:,.2f}")
                     
                     st.divider()
                     
@@ -134,7 +136,7 @@ if check_password():
         else:
             st.info("No hay pedidos pendientes.")
 
-    # --- OPCIÓN 3: REFORZAR SEÑA (ESTA SE HABÍA ROTO) ---
+    # --- OPCIÓN 3: REFORZAR SEÑA  ---
     elif opcion == "Reforzar Seña":
         st.header("💰 Reforzar Seña de Pedido")
         # Traemos pedidos pendientes para elegir a quién sumarle plata
