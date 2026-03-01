@@ -76,6 +76,13 @@ if check_password():
         
         if res.data:
             # --- ACÁ EMPIEZAN LOS EXPANDERS DIRECTAMENTE ---
+            # Sumamos todos los saldos de la lista
+            total_a_cobrar = sum((float(p['total_operacion'] or 0) - float(p['anticipo_monto'] or 0)) for p in res.data)
+
+# Lo mostramos en un cartel grande y verde
+            st.metric(label="💰 TOTAL PENDIENTE DE COBRO", value=f"${total_a_cobrar:,.2f}")
+            st.divider()
+            
             for p in res.data:
                 # Buscamos el nombre del cliente
                 cli = supabase.table("clientes").select("nombre_apellido").eq("id", p['cliente_id']).execute()
